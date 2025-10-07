@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    /* === Directorios === */
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    /* === Entorno de ejecución === */
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["es2020"],
+    "types": ["node"],
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+
+    /* === Configuración de compilación === */
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+
+    /* === Limpieza de código === */
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+
+    /* === Opcional: mejora DX === */
+    "resolveJsonModule": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}
