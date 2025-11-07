@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { sequelize } from "./config/database";
 import authRoutes from "./routes/authRoutes";
+import tripRoutes from "./routes/tripRoutes";
 
 dotenv.config();
 
@@ -19,6 +20,9 @@ app.get("/", (_req, res) => {
 
 // Rutas de autenticación
 app.use("/api/auth", authRoutes);
+
+// Rutas de viajes
+app.use("/api/trips", tripRoutes);
 
 // Conectar a la base de datos y levantar servidor
 const startServer = async () => {
