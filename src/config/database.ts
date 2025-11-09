@@ -3,15 +3,22 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-export const sequelize = new Sequelize({
-  database: process.env.DB_NAME as string,
-  username: process.env.DB_USER as string,
-  password: process.env.DB_PASS,
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT) || 5432, // 👈 usa DB_PORT, no PORT
-  dialect: "postgres",
-  logging: false,
-});
+const connectionString = process.env.DATABASE_URL;
+
+export const sequelize = connectionString
+  ? new Sequelize(connectionString, {
+      dialect: "postgres",
+      logging: false,
+    })
+  : new Sequelize({
+      database: process.env.DB_NAME as string,
+      username: process.env.DB_USER as string,
+      password: process.env.DB_PASS,
+      host: process.env.DB_HOST,
+      port: Number(process.env.DB_PORT) || 5432,
+      dialect: "postgres",
+      logging: false,
+    });
 
 export async function connectDB() {
   let retries = 5;
