@@ -8,7 +8,19 @@ import tripRoutes from "./routes/tripRoutes";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+const allowedOrigins = [
+  "https://santiago-software.netlify.app",
+  "http://localhost:3000",
+  "http://localhost:5173",
+];
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
