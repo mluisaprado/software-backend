@@ -3,22 +3,31 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-export const sequelize = new Sequelize(
-  process.env.DB_NAME as string,
-  process.env.DB_USER as string,
-  process.env.DB_PASS,
-  {
-    host: process.env.DB_HOST,
-    dialect: "postgres",
-    logging: false,
-  }
-);
+export const sequelize = new Sequelize({
+  database: process.env.DB_NAME as string,
+  username: process.env.DB_USER as string,
+  password: process.env.DB_PASS,
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT) || 5432, // 👈 usa DB_PORT, no PORT
+  dialect: "postgres",
+  logging: false,
+});
 
 export async function connectDB() {
-  try {
-    await sequelize.authenticate();
-    console.log("✅ Conectado a PostgreSQL correctamente");
-  } catch (error) {
-    console.error("❌ Error al conectar con la base de datos:", error);
+  let retries = 5;
+  while (retries) {
+    try {
+      await sequelize.authenticate();
+      console.log("✅ Conectado a PostgreSQL correctamente");
+      break;
+    } catch (error) {
+      retries -= 1;
+      console.error(
+        `❌ Error al conectar con la base de datos (intentos restantes: ${retries}):`,
+        (error as any).message
+      );
+      if (!retries) throw error;
+      await new Promise((res) => setTimeout(res, 5000)); // espera 5s y reintenta
+    }
   }
 }
