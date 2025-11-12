@@ -32,13 +32,17 @@ Crea un archivo .env en la raíz del proyecto con las siguientes variables:
 
 env
 Copiar código
-PORT=4000
+
+PORT=3000
 
 DB_NAME=santiago
 DB_USER=software
 DB_PASS=software1234
 DB_HOST=localhost
 DB_DIALECT=postgres
+
+JWT_SECRET=tu_secreto_super_seguro_cambialo_en_produccion
+
 4️⃣ Configurar la base de datos en PostgreSQL
 sql
 Copiar código
