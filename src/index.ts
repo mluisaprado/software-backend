@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import { sequelize } from "./config/database";
 import authRoutes from "./routes/authRoutes";
 import tripRoutes from "./routes/tripRoutes";
+import userRoutes from "./routes/userRoutes";
+
 
 dotenv.config();
 
@@ -36,6 +38,10 @@ app.use("/api/auth", authRoutes);
 
 // Rutas de viajes
 app.use("/api/trips", tripRoutes);
+
+// Rutas de usuarios
+app.use("/api/users", userRoutes);
+
 
 // Conectar a la base de datos y levantar servidor
 const startServer = async () => {
