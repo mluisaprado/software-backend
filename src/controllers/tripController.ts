@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { Op, WhereOptions } from "sequelize";
 import { Trip } from "../models/Trip";
+import Reservation from "../models/Reservation";
 
 interface CreateTripBody {
   origin: string;
@@ -161,3 +162,98 @@ export const listTrips = async (req: Request, res: Response): Promise<void> => {
     });
   }
 };
+
+export const reserveTrip = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;         
+    const tripId = req.params.id;          
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "No autorizado",
+      });
+      return;
+    }
+
+    // 1. Buscar el viaje
+    const trip = await Trip.findByPk(tripId);
+
+    if (!trip) {
+      res.status(404).json({
+        success: false,
+        message: "Viaje no encontrado",
+      });
+      return;
+    }
+
+    // 2. Evitar que el conductor reserve su propio viaje
+    // @ts-ignore: user_id existe en el modelo Trip pero TS no lo sabe
+    if (trip.user_id === userId) {
+      res.status(400).json({
+        success: false,
+        message: "No puedes reservar un viaje que tú mismo conduces",
+      });
+      return;
+    }
+
+    // 3. Verificar asientos disponibles
+    // @ts-ignore
+    if (trip.available_seats <= 0) {
+      res.status(400).json({
+        success: false,
+        message: "No hay asientos disponibles en este viaje",
+      });
+      return;
+    }
+
+    // 4. Evitar reserva duplicada del mismo usuario en el mismo viaje
+    const existingReservation = await Reservation.findOne({
+      where: {
+        trip_id: tripId,
+        user_id: userId,
+      },
+    });
+
+    if (existingReservation) {
+      res.status(400).json({
+        success: false,
+        message: "Ya tienes una reserva para este viaje",
+      });
+      return;
+    }
+
+    // 5. Crear la reserva en estado "pending"
+    const reservation = await Reservation.create({
+      trip_id: tripId,
+      user_id: userId,
+      status: "pending",
+    });
+
+    // 6. Descontar asiento disponible y, si llega a 0, marcar como "full"
+    // @ts-ignore
+    trip.available_seats = trip.available_seats - 1;
+
+    // @ts-ignore
+    if (trip.available_seats === 0) {
+      // @ts-ignore
+      trip.status = "full";
+    }
+
+    await trip.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Reserva creada correctamente",
+      data: reservation,
+    });
+  } catch (error: any) {
+    console.error("Error al reservar viaje:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error al reservar el viaje",
+      error: error.message,
+    });
+  }
+};
+
