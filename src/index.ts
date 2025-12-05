@@ -5,7 +5,9 @@ import { sequelize } from "./config/database";
 import authRoutes from "./routes/authRoutes";
 import tripRoutes from "./routes/tripRoutes";
 import userRoutes from "./routes/userRoutes";
+
 import reservationRoutes from "./routes/reservationRoutes";
+import messageRoutes from "./routes/messageRoutes";
 
 
 dotenv.config();
@@ -45,6 +47,8 @@ app.use("/api/users", userRoutes);
 
 // Rutas de reservas
 app.use("/api/reservations", reservationRoutes);
+
+app.use("/api/messages", messageRoutes);
 
 
 // Conectar a la base de datos y levantar servidor

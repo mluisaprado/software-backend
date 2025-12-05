@@ -114,11 +114,15 @@ export const listTrips = async (req: Request, res: Response): Promise<void> => {
       where.destination = { [Op.iLike]: `%${destination}%` };
     }
 
-    if (status) {
+    if (status && status !== 'all' && status.trim() !== '') {
+      // Si viene un status específico (published, full, canceled, etc.)
       where.status = status;
-    } else {
+    } else if (!status || status.trim() === '') {
+      // Si NO viene status → por defecto solo publicados (para búsqueda pública)
       where.status = "published";
     }
+    // Si status === 'all' → no agregamos where.status y se devuelven todos los viajes
+
 
     if (date) {
       const parsedDate = new Date(date);
@@ -230,17 +234,17 @@ export const reserveTrip = async (req: Request, res: Response): Promise<void> =>
       status: "pending",
     });
 
-    // 6. Descontar asiento disponible y, si llega a 0, marcar como "full"
-    // @ts-ignore
-    trip.available_seats = trip.available_seats - 1;
+    // // 6. Descontar asiento disponible y, si llega a 0, marcar como "full"
+    // // @ts-ignore
+    // trip.available_seats = trip.available_seats - 1;
 
-    // @ts-ignore
-    if (trip.available_seats === 0) {
-      // @ts-ignore
-      trip.status = "full";
-    }
+    // // @ts-ignore
+    // if (trip.available_seats === 0) {
+    //   // @ts-ignore
+    //   trip.status = "full";
+    // }
 
-    await trip.save();
+    // await trip.save();
 
     res.status(201).json({
       success: true,

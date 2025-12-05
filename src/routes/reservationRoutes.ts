@@ -5,6 +5,8 @@ import {
   acceptReservation,
   rejectReservation,
 } from "../controllers/reservationController";
+import { listMyUpcomingTrips } from "../controllers/reservationController";
+
 
 const router = Router();
 
@@ -13,5 +15,7 @@ router.patch("/:id/accept", authMiddleware, acceptReservation);
 
 // PATCH /api/reservations/:id/reject
 router.patch("/:id/reject", authMiddleware, rejectReservation);
+
+router.get("/my-upcoming", authMiddleware, listMyUpcomingTrips);
 
 export default router;
