@@ -2,6 +2,8 @@
 import { Request, Response } from "express";
 import { Reservation } from "../models/Reservation";
 import { Trip } from "../models/Trip";
+import { Op } from "sequelize";
+
 import User from "../models/User";
 
 export const listReservationsForTrip = async (
@@ -269,6 +271,122 @@ export const rejectReservation = async (
     res.status(500).json({
       success: false,
       message: "Error al rechazar la reserva",
+      error: error.message,
+    });
+  }
+};
+
+
+export const listMyUpcomingTrips = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ success: false, message: "No autorizado" });
+      return;
+    }
+
+    const now = new Date();
+
+    // 1) Como PASAJERA (reservas confirmadas)
+    const asPassengerReservations = await Reservation.findAll({
+      where: {
+        user_id: userId,
+        status: "confirmed",
+      },
+      include: [
+        {
+          model: Trip,
+          as: "trip",
+          where: {
+            departure_time: {
+              [Op.gte]: now,
+            },
+          },
+          include: [
+            {
+              association: Trip.associations.driver,
+              attributes: { exclude: ["password"] },
+            },
+          ],
+        },
+      ],
+      order: [[{ model: Trip, as: "trip" }, "departure_time", "ASC"]],
+    });
+
+    // 2) Como CONDUCTORA:
+    //    viajes futuros donde HAY al menos UNA reserva CONFIRMADA
+    const asDriverReservations = await Reservation.findAll({
+      where: {
+        status: "confirmed",
+      },
+      include: [
+        {
+          model: Trip,
+          as: "trip",
+          where: {
+            user_id: userId, // tú eres la conductora
+            departure_time: {
+              [Op.gte]: now,
+            },
+          },
+          include: [
+            {
+              association: Trip.associations.driver,
+              attributes: { exclude: ["password"] },
+            },
+          ],
+        },
+      ],
+      order: [[{ model: Trip, as: "trip" }, "departure_time", "ASC"]],
+    });
+
+    // 3) Normalizamos a un formato común
+
+    const asPassenger = (asPassengerReservations as any[]).map((r) => ({
+      id: r.id, // id de la reserva
+      role: "passenger" as const,
+      status: r.status,
+      trip: r.trip,
+    }));
+
+    // Para conductor podemos tener varias reservas del mismo viaje
+    // -> deduplicamos por trip.id
+    const driverTripMap = new Map<number, any>();
+
+    (asDriverReservations as any[]).forEach((r) => {
+      const t = r.trip;
+      if (t && !driverTripMap.has(t.id)) {
+        driverTripMap.set(t.id, {
+          id: t.id, // usamos id del viaje
+          role: "driver" as const,
+          status: t.status,
+          trip: t,
+        });
+      }
+    });
+
+    const asDriver = Array.from(driverTripMap.values());
+
+    // 4) Unimos y ordenamos por fecha del viaje
+    const all = [...asPassenger, ...asDriver].sort(
+      (a, b) =>
+        new Date(a.trip.departure_time).getTime() -
+        new Date(b.trip.departure_time).getTime()
+    );
+
+    res.status(200).json({
+      success: true,
+      data: all,
+    });
+  } catch (error: any) {
+    console.error("Error al listar próximos viajes:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error al obtener próximos viajes",
       error: error.message,
     });
   }
