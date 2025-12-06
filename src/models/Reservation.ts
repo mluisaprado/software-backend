@@ -37,12 +37,27 @@ Reservation.init(
       defaultValue: "pending",
       allowNull: false,
     },
+
+    rating: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      validate: {
+        min: 1,
+        max: 5
+      }
+    },
+    comment: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
   },
   {
     sequelize,
     tableName: "reservations",
     timestamps: true,
   }
+  
+
 );
 
 // 🔗 Relaciones
