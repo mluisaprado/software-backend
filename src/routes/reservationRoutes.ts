@@ -4,8 +4,11 @@ import { authMiddleware } from "../middleware/auth";
 import {
   acceptReservation,
   rejectReservation,
+  listMyUpcomingTrips,
+  listReservationsForTrip,
+  rateReservation,           
 } from "../controllers/reservationController";
-import { listMyUpcomingTrips } from "../controllers/reservationController";
+
 
 
 const router = Router();
@@ -17,5 +20,13 @@ router.patch("/:id/accept", authMiddleware, acceptReservation);
 router.patch("/:id/reject", authMiddleware, rejectReservation);
 
 router.get("/my-upcoming", authMiddleware, listMyUpcomingTrips);
+
+router.get(
+  "/trip/:id",
+  authMiddleware,
+  listReservationsForTrip
+);
+
+router.patch("/:id/rate", authMiddleware, rateReservation);
 
 export default router;
