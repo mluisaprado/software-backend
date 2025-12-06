@@ -2,6 +2,12 @@
 import type { Request, Response } from "express";
 import { createTrip, listTrips } from "../src/controllers/tripController";
 
+jest.mock("../src/models/Reservation", () => ({
+  Reservation: {
+    findOne: jest.fn(),
+  },
+}));
+
 jest.mock("../src/models/Trip", () => {
   const tripModel = {
     create: jest.fn(),
@@ -48,11 +54,11 @@ describe("tripController.createTrip", () => {
 
   it("debe validar campos obligatorios", async () => {
     const req = {
-      user: { id: 1 },
+      user: { id: 1, email: "test@example.com" },
       body: {
         origin: "",
       },
-    } as Partial<Request> & { user: { id: number } };
+    } as Partial<Request> & { user: { id: number; email: string } };
 
     const res = createMockResponse();
 
@@ -68,7 +74,7 @@ describe("tripController.createTrip", () => {
     const futureDate = new Date(Date.now() + 1000 * 60 * 60).toISOString();
 
     const req = {
-      user: { id: 1 },
+      user: { id: 1, email: "test@example.com" },
       body: {
         origin: "Lima",
         destination: "Cusco",
@@ -77,7 +83,7 @@ describe("tripController.createTrip", () => {
         total_seats: 4,
         available_seats: 4,
       },
-    } as Partial<Request> & { user: { id: number } };
+    } as Partial<Request> & { user: { id: number; email: string } };
 
     const res = createMockResponse();
 
@@ -138,5 +144,102 @@ describe("tripController.listTrips", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ data: trips })
     );
+  });
+
+  it("debe listar viajes sin filtros", async () => {
+    findAllMock.mockResolvedValueOnce([]);
+
+    const req = {
+      query: {},
+    } as Partial<Request>;
+    const res = createMockResponse();
+
+    await listTrips(req as Request, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("debe retornar 500 si hay un error", async () => {
+    findAllMock.mockRejectedValueOnce(new Error("Database error"));
+
+    const req = {
+      query: {},
+    } as Partial<Request>;
+    const res = createMockResponse();
+
+    await listTrips(req as Request, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+});
+
+describe("tripController.createTrip - casos adicionales", () => {
+  beforeEach(() => {
+    createMock.mockReset();
+  });
+
+  it("debe retornar 400 si total_seats es menor o igual a 0", async () => {
+    const futureDate = new Date(Date.now() + 1000 * 60 * 60).toISOString();
+
+    const req = {
+      user: { id: 1, email: "test@example.com" },
+      body: {
+        origin: "Lima",
+        destination: "Cusco",
+        departure_time: futureDate,
+        price_per_seat: 40,
+        total_seats: 0,
+      },
+    } as Partial<Request> & { user: { id: number; email: string } };
+    const res = createMockResponse();
+
+    await createTrip(req as Request, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it("debe retornar 400 si available_seats es mayor que total_seats", async () => {
+    const futureDate = new Date(Date.now() + 1000 * 60 * 60).toISOString();
+
+    const req = {
+      user: { id: 1, email: "test@example.com" },
+      body: {
+        origin: "Lima",
+        destination: "Cusco",
+        departure_time: futureDate,
+        price_per_seat: 40,
+        total_seats: 4,
+        available_seats: 5,
+      },
+    } as Partial<Request> & { user: { id: number; email: string } };
+    const res = createMockResponse();
+
+    await createTrip(req as Request, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it("debe retornar 500 si hay un error al crear", async () => {
+    createMock.mockRejectedValueOnce(new Error("Database error"));
+
+    const futureDate = new Date(Date.now() + 1000 * 60 * 60).toISOString();
+
+    const req = {
+      user: { id: 1, email: "test@example.com" },
+      body: {
+        origin: "Lima",
+        destination: "Cusco",
+        departure_time: futureDate,
+        price_per_seat: 40,
+        total_seats: 4,
+      },
+    } as Partial<Request> & { user: { id: number; email: string } };
+    const res = createMockResponse();
+
+    await createTrip(req as Request, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
   });
 });

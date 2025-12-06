@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 import type { Request, Response } from "express";
-import { register, login } from "../src/controllers/authController";
+import { register, login, getProfile } from "../src/controllers/authController";
 import User from "../src/models/User";
 import jwt from "jsonwebtoken";
 
@@ -9,12 +9,14 @@ jest.mock("../src/models/User", () => ({
   default: {
     findOne: jest.fn(),
     create: jest.fn(),
+    findByPk: jest.fn(),
   },
 }));
 
 type MockedUser = {
   findOne: jest.Mock;
   create: jest.Mock;
+  findByPk: jest.Mock;
 };
 
 const mockedUser = User as unknown as MockedUser;
@@ -30,6 +32,10 @@ function createMockResponse() {
 }
 
 describe("authController.register", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it("debe retornar 400 si faltan campos requeridos", async () => {
     const req = { body: { email: "test@example.com", password: "secret" } } as Partial<Request>;
     const res = createMockResponse();
@@ -99,9 +105,27 @@ describe("authController.register", () => {
       })
     );
   });
+
+  it("debe retornar 500 si hay un error en la creación", async () => {
+    mockedUser.findOne.mockResolvedValueOnce(null);
+    mockedUser.create.mockRejectedValueOnce(new Error("Database error"));
+
+    const req = {
+      body: { name: "Test", email: "test@example.com", password: "secret" },
+    } as Partial<Request>;
+    const res = createMockResponse();
+
+    await register(req as Request, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
 });
 
 describe("authController.login", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it("debe retornar 400 si faltan credenciales", async () => {
     const req = { body: { email: "" } } as Partial<Request>;
     const res = createMockResponse();
@@ -167,5 +191,88 @@ describe("authController.login", () => {
         data: expect.objectContaining({ token: "mock-token" }),
       })
     );
+  });
+
+  it("debe retornar 500 si hay un error en el proceso", async () => {
+    mockedUser.findOne.mockRejectedValueOnce(new Error("Database error"));
+
+    const req = {
+      body: { email: "test@example.com", password: "secret" },
+    } as Partial<Request>;
+    const res = createMockResponse();
+
+    await login(req as Request, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+});
+
+describe("authController.getProfile", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("debe retornar 404 si el usuario no existe", async () => {
+    mockedUser.findByPk.mockResolvedValueOnce(null);
+
+    const req = {
+      user: { id: 1 },
+    } as Partial<Request>;
+    const res = createMockResponse();
+
+    await getProfile(req as Request, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        message: "Usuario no encontrado",
+      })
+    );
+  });
+
+  it("debe retornar 200 con el perfil del usuario", async () => {
+    const mockUser = {
+      id: 1,
+      name: "Test",
+      email: "test@example.com",
+      toJSON: jest.fn().mockReturnValue({
+        id: 1,
+        name: "Test",
+        email: "test@example.com",
+      }),
+    };
+    mockedUser.findByPk.mockResolvedValueOnce(mockUser);
+
+    const req = {
+      user: { id: 1 },
+    } as Partial<Request>;
+    const res = createMockResponse();
+
+    await getProfile(req as Request, res);
+
+    expect(mockedUser.findByPk).toHaveBeenCalledWith(1, {
+      attributes: { exclude: ["password"] },
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        data: mockUser,
+      })
+    );
+  });
+
+  it("debe retornar 500 si hay un error", async () => {
+    mockedUser.findByPk.mockRejectedValueOnce(new Error("Database error"));
+
+    const req = {
+      user: { id: 1 },
+    } as Partial<Request>;
+    const res = createMockResponse();
+
+    await getProfile(req as Request, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
   });
 });
