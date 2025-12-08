@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
 import { sequelize } from "./config/database";
 import authRoutes from "./routes/authRoutes";
 import tripRoutes from "./routes/tripRoutes";
@@ -28,6 +29,8 @@ app.use(
   })
 );
 app.use(express.json());
+// Servir archivos estáticos (imágenes de perfil)
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 const PORT = process.env.PORT || 3000;
 
