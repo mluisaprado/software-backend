@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import User from "../models/User";
+import path from "path";
+import fs from "fs";
 
 const JWT_SECRET = process.env.JWT_SECRET || "tu_secreto_super_seguro_cambialo";
 
@@ -46,6 +48,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         id: user.id,
         name: user.name,
         email: user.email,
+        profile_picture: user.profile_picture || null,
         token,
       },
     });
@@ -105,6 +108,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         id: user.id,
         name: user.name,
         email: user.email,
+        profile_picture: user.profile_picture || null,
         token,
       },
     });
@@ -144,6 +148,74 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
     res.status(500).json({
       success: false,
       message: "Error al obtener perfil",
+      error: error.message,
+    });
+  }
+};
+
+// Subir/actualizar foto de perfil
+export const uploadProfilePicture = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+
+    if (!req.file) {
+      res.status(400).json({
+        success: false,
+        message: "No se proporcionó ninguna imagen",
+      });
+      return;
+    }
+
+    // Obtener usuario actual
+    const user = await User.findByPk(userId);
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: "Usuario no encontrado",
+      });
+      return;
+    }
+
+    // Si el usuario ya tiene una foto de perfil, eliminar la anterior
+    if (user.profile_picture) {
+      const oldPicturePath = path.join(
+        __dirname,
+        "../../uploads/profile-pictures",
+        path.basename(user.profile_picture)
+      );
+      
+      if (fs.existsSync(oldPicturePath)) {
+        fs.unlinkSync(oldPicturePath);
+      }
+    }
+
+    // Guardar la ruta relativa de la nueva imagen
+    const imageUrl = `/uploads/profile-pictures/${req.file.filename}`;
+
+    // Actualizar el usuario con la nueva foto
+    await user.update({ profile_picture: imageUrl });
+
+    res.status(200).json({
+      success: true,
+      message: "Foto de perfil actualizada exitosamente",
+      data: {
+        profile_picture: imageUrl,
+      },
+    });
+  } catch (error: any) {
+    console.error("Error al subir foto de perfil:", error);
+    
+    // Si hay un error y se subió un archivo, eliminarlo
+    if (req.file) {
+      const filePath = path.join(__dirname, "../../uploads/profile-pictures", req.file.filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Error al subir foto de perfil",
       error: error.message,
     });
   }
