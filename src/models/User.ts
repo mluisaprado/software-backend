@@ -7,6 +7,7 @@ interface UserAttributes {
   name: string;
   email: string;
   password: string;
+  profile_picture?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -18,6 +19,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   public name!: string;
   public email!: string;
   public password!: string;
+  public profile_picture?: string | null;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 
@@ -49,6 +51,11 @@ User.init(
     password: {
       type: DataTypes.STRING(255),
       allowNull: false,
+    },
+    profile_picture: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+      defaultValue: null,
     },
   },
   {
