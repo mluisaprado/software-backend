@@ -1,11 +1,16 @@
 // src/controllers/reservationController.ts
 import { Request, Response } from "express";
-import { Reservation } from "../models/Reservation";
-import { Trip } from "../models/Trip";
 import { Op } from "sequelize";
 
+import { Reservation } from "../models/Reservation";
+import { Trip } from "../models/Trip";
+import { Calification } from "../models/Calification";
 import User from "../models/User";
 
+/**
+ * GET /api/trips/:id/reservations
+ * Lista las reservas de un viaje específico (del conductor autenticado)
+ */
 export const listReservationsForTrip = async (
   req: Request,
   res: Response
@@ -37,7 +42,6 @@ export const listReservationsForTrip = async (
       return;
     }
 
-    // 👉 hacemos cast a any para poder usar user_id sin que TS se queje
     const trip = tripRecord as any;
 
     if (trip.user_id !== driverId) {
@@ -100,12 +104,7 @@ export const acceptReservation = async (
     }
 
     const reservationRecord = await Reservation.findByPk(reservationId, {
-      include: [
-        {
-          model: Trip,
-          as: "trip",
-        },
-      ],
+      include: [{ model: Trip, as: "trip" }],
     });
 
     if (!reservationRecord) {
@@ -116,7 +115,6 @@ export const acceptReservation = async (
       return;
     }
 
-    // 👉 casteamos para poder usar .status y .trip
     const reservation = reservationRecord as any;
 
     if (!reservation.trip) {
@@ -145,7 +143,6 @@ export const acceptReservation = async (
       return;
     }
 
-    // No aceptar reservas de viajes pasados
     const now = new Date();
     if (trip.departure_time <= now) {
       res.status(400).json({
@@ -214,12 +211,7 @@ export const rejectReservation = async (
     }
 
     const reservationRecord = await Reservation.findByPk(reservationId, {
-      include: [
-        {
-          model: Trip,
-          as: "trip",
-        },
-      ],
+      include: [{ model: Trip, as: "trip" }],
     });
 
     if (!reservationRecord) {
@@ -276,7 +268,12 @@ export const rejectReservation = async (
   }
 };
 
-
+/**
+ * GET /api/reservations/my-upcoming
+ * Lista próximos viajes donde:
+ * - eres pasajera (reservas confirmadas)
+ * - o eres conductora (viajes donde tú eres driver y tienen reservas confirmadas)
+ */
 export const listMyUpcomingTrips = async (
   req: Request,
   res: Response
@@ -317,8 +314,7 @@ export const listMyUpcomingTrips = async (
       order: [[{ model: Trip, as: "trip" }, "departure_time", "ASC"]],
     });
 
-    // 2) Como CONDUCTORA:
-    //    viajes futuros donde HAY al menos UNA reserva CONFIRMADA
+    // 2) Como CONDUCTORA (viajes donde tú eres driver)
     const asDriverReservations = await Reservation.findAll({
       where: {
         status: "confirmed",
@@ -387,6 +383,131 @@ export const listMyUpcomingTrips = async (
     res.status(500).json({
       success: false,
       message: "Error al obtener próximos viajes",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * PATCH /api/reservations/:id/rate
+ * Calificar un viaje (solo pasajero, una vez, y solo después del viaje)
+ */
+export const rateReservation = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const reservationId = Number(req.params.id);
+    const { rating, comment } = req.body;
+
+    // 1. Validar usuario autenticado
+    if (!userId) {
+      res.status(401).json({ success: false, message: "No autorizado" });
+      return;
+    }
+
+    // 2. ID válido
+    if (Number.isNaN(reservationId)) {
+      res.status(400).json({
+        success: false,
+        message: "ID de reserva inválido",
+      });
+      return;
+    }
+
+    // 3. rating válido
+    if (!rating || rating < 1 || rating > 5) {
+      res.status(400).json({
+        success: false,
+        message: "La calificación debe estar entre 1 y 5",
+      });
+      return;
+    }
+
+    // 4. Buscar reserva + viaje
+    const reservationRecord = await Reservation.findByPk(reservationId, {
+      include: [{ model: Trip, as: "trip" }],
+    });
+
+    if (!reservationRecord) {
+      res.status(404).json({
+        success: false,
+        message: "Reserva no encontrada",
+      });
+      return;
+    }
+
+    const reservation = reservationRecord as any;
+
+    if (!reservation.trip) {
+      res.status(404).json({
+        success: false,
+        message: "La reserva no tiene viaje asociado",
+      });
+      return;
+    }
+
+    const trip = reservation.trip as any;
+
+    // 5. Solo el pasajero puede calificar
+    if (reservation.user_id !== userId) {
+      res.status(403).json({
+        success: false,
+        message: "No tienes permiso para calificar este viaje",
+      });
+      return;
+    }
+
+    // 6. No puedes calificar antes del viaje
+    const now = new Date();
+    if (trip.departure_time > now) {
+      res.status(400).json({
+        success: false,
+        message: "Solo puedes calificar viajes que ya ocurrieron",
+      });
+      return;
+    }
+
+    // 7. Evitar doble calificación
+    //  👉 con tu modelo: una calificación por (trip_id, user_author_id)
+    const existing = await Calification.findOne({
+      where: {
+        trip_id: trip.id,
+        user_author_id: reservation.user_id,
+      },
+    });
+
+    if (existing) {
+      res.status(400).json({
+        success: false,
+        message: "Ya calificaste este viaje",
+      });
+      return;
+    }
+
+    // 8. Crear calificación usando TU modelo:
+    //    - trip_id           → viaje
+    //    - user_author_id    → pasajero que califica
+    //    - user_receiver_id  → conductor que recibe la calificación
+    //    - score             → rating (1–5)
+    await Calification.create({
+      trip_id: trip.id,
+      user_author_id: reservation.user_id, // pasajero
+      user_receiver_id: trip.user_id,      // conductor
+      score: rating,
+      comment,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Calificación registrada correctamente",
+    });
+  } catch (error: any) {
+    console.error("Error al calificar viaje:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error al calificar el viaje",
       error: error.message,
     });
   }
