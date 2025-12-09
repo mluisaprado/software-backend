@@ -42,6 +42,40 @@ export const createTrip = async (req: Request, res: Response): Promise<void> => 
       });
       return;
     }
+    const isValidLocation = (str: string) => {
+      if (!str) return false;
+      const trimmed = str.trim();
+      if (trimmed.length < 5) return false;         // mínimo 5 caracteres
+      if (/^[0-9]/.test(trimmed)) return false;     // no puede comenzar con número
+      return true;
+    };
+
+    if (!isValidLocation(origin)) {
+      res.status(400).json({
+        success: false,
+        message:
+          "El origen debe tener al menos 5 caracteres y no puede comenzar con un número.",
+      });
+      return;
+    }
+
+    if (!isValidLocation(destination)) {
+      res.status(400).json({
+        success: false,
+        message:
+          "El destino debe tener al menos 5 caracteres y no puede comenzar con un número.",
+      });
+      return;
+    }
+
+    if (!isValidLocation(origin)) {
+      res.status(400).json({
+        success: false,
+        message:
+          "El origen debe tener al menos 5 caracteres y no puede comenzar con un número.",
+      });
+      return;
+    }
 
     if (total_seats <= 0) {
       res.status(400).json({
@@ -74,6 +108,15 @@ export const createTrip = async (req: Request, res: Response): Promise<void> => 
       res.status(400).json({
         success: false,
         message: "departure_time debe ser una fecha válida",
+      });
+      return;
+    }
+
+    const now = new Date();
+    if (parsedDeparture <= now) {
+      res.status(400).json({
+        success: false,
+        message: "La fecha del viaje debe ser posterior a la fecha y hora actual.",
       });
       return;
     }
