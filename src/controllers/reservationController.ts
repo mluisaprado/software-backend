@@ -512,3 +512,58 @@ export const rateReservation = async (
     });
   }
 };
+
+export const listMyPastTrips = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId)
+      return res.status(401).json({ success: false, message: "No autorizado" });
+
+    const now = new Date();
+
+    // 1. Viajes donde fuiste pasajera (solo confirmados)
+    const asPassenger = await Reservation.findAll({
+      where: {
+        user_id: userId,
+        status: "confirmed",
+      },
+      include: [
+        {
+          model: Trip,
+          as: "trip",
+          where: { departure_time: { [Op.lt]: now } },
+          include: [{ association: Trip.associations.driver }],
+        },
+      ],
+      order: [[{ model: Trip, as: "trip" }, "departure_time", "DESC"]],
+    });
+
+    // 2. Viajes donde fuiste conductora
+    const asDriver = await Trip.findAll({
+      where: {
+        user_id: userId,
+        departure_time: { [Op.lt]: now },
+      },
+      order: [["departure_time", "DESC"]],
+      include: [
+        {
+          model: Reservation,
+          as: "reservations",
+          where: { status: "confirmed" },
+          required: false,
+          include: [{ model: User, as: "user" }],
+        },
+      ],
+    });
+
+    return res.json({
+      success: true,
+      data: { asPassenger, asDriver },
+    });
+  } catch (error) {
+    console.error("Error listMyPastTrips:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Error al obtener historial" });
+  }
+};
