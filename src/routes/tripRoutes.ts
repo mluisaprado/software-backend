@@ -7,6 +7,7 @@ import { listReservationsForTrip } from "../controllers/reservationController";
 const router = Router();
 
 router.get("/", listTrips);
+router.get("/my-trips", authMiddleware, listMyTrips); // Mis viajes creados
 router.post("/", authMiddleware, createTrip);
 router.get("/my-trips", authMiddleware, listMyTrips);
 router.post("/:id/reservations", authMiddleware, reserveTrip);

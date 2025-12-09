@@ -43,11 +43,53 @@ export const createTrip = async (req: Request, res: Response): Promise<void> => 
       });
       return;
     }
+    const isValidLocation = (str: string) => {
+      if (!str) return false;
+      const trimmed = str.trim();
+      if (trimmed.length < 5) return false;         // mínimo 5 caracteres
+      if (/^[0-9]/.test(trimmed)) return false;     // no puede comenzar con número
+      return true;
+    };
+
+    if (!isValidLocation(origin)) {
+      res.status(400).json({
+        success: false,
+        message:
+          "El origen debe tener al menos 5 caracteres y no puede comenzar con un número.",
+      });
+      return;
+    }
+
+    if (!isValidLocation(destination)) {
+      res.status(400).json({
+        success: false,
+        message:
+          "El destino debe tener al menos 5 caracteres y no puede comenzar con un número.",
+      });
+      return;
+    }
+
+    if (!isValidLocation(origin)) {
+      res.status(400).json({
+        success: false,
+        message:
+          "El origen debe tener al menos 5 caracteres y no puede comenzar con un número.",
+      });
+      return;
+    }
 
     if (total_seats <= 0) {
       res.status(400).json({
         success: false,
         message: "total_seats debe ser mayor a cero",
+      });
+      return;
+    }
+
+    if (price_per_seat <= 0 || !Number.isInteger(price_per_seat)) {
+      res.status(400).json({
+        success: false,
+        message: "price_per_seat debe ser un número entero mayor a cero",
       });
       return;
     }
@@ -67,6 +109,15 @@ export const createTrip = async (req: Request, res: Response): Promise<void> => 
       res.status(400).json({
         success: false,
         message: "departure_time debe ser una fecha válida",
+      });
+      return;
+    }
+
+    const now = new Date();
+    if (parsedDeparture <= now) {
+      res.status(400).json({
+        success: false,
+        message: "La fecha del viaje debe ser posterior a la fecha y hora actual.",
       });
       return;
     }
@@ -115,19 +166,18 @@ export const listTrips = async (req: Request, res: Response): Promise<void> => {
       where.destination = { [Op.iLike]: `%${destination}%` };
     }
 
-    if (status && status !== 'all' && status.trim() !== '') {
-      // Si viene un status específico (published, full, canceled, etc.)
+    if (status) {
       where.status = status;
-    } else if (!status || status.trim() === '') {
-      // Si NO viene status → por defecto solo publicados (para búsqueda pública)
+    } else {
       where.status = "published";
     }
-    // Si status === 'all' → no agregamos where.status y se devuelven todos los viajes
 
-
+    // 🔥 FILTRO DE FECHA CORREGIDO
     if (date) {
-      const parsedDate = new Date(date);
-      if (Number.isNaN(parsedDate.getTime())) {
+      // date viene como "YYYY-MM-DD"
+      const [y, m, d] = date.split("-").map(Number);
+
+      if (!y || !m || !d) {
         res.status(400).json({
           success: false,
           message: "date debe ser una fecha válida (YYYY-MM-DD)",
@@ -135,8 +185,8 @@ export const listTrips = async (req: Request, res: Response): Promise<void> => {
         return;
       }
 
-      const startOfDay = new Date(parsedDate.setHours(0, 0, 0, 0));
-      const endOfDay = new Date(parsedDate.setHours(23, 59, 59, 999));
+      const startOfDay = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
+      const endOfDay = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999));
 
       where.departure_time = {
         [Op.between]: [startOfDay, endOfDay],
@@ -168,10 +218,10 @@ export const listTrips = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-export const reserveTrip = async (req: Request, res: Response): Promise<void> => {
+// Listar viajes creados por el usuario autenticado (conductor)
+export const listMyTrips = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;         
-    const tripId = req.params.id;          
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({
@@ -181,7 +231,52 @@ export const reserveTrip = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    // 1. Buscar el viaje
+    const { status } = req.query as { status?: string };
+
+    const where: WhereOptions = { user_id: userId };
+
+    if (status && status !== "all" && status.trim() !== "") {
+      where.status = status;
+    }
+
+    const trips = await Trip.findAll({
+      where,
+      order: [["departure_time", "DESC"]],
+      include: [
+        {
+          association: Trip.associations.driver,
+          attributes: { exclude: ["password"] },
+        },
+      ],
+    });
+
+    res.status(200).json({
+      success: true,
+      data: trips,
+    });
+  } catch (error: any) {
+    console.error("Error al listar mis viajes:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error al obtener tus viajes",
+      error: error.message,
+    });
+  }
+};
+
+export const reserveTrip = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const tripId = req.params.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "No autorizado",
+      });
+      return;
+    }
+
     const trip = await Trip.findByPk(tripId);
 
     if (!trip) {
@@ -192,27 +287,24 @@ export const reserveTrip = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    // 2. Evitar que el conductor reserve su propio viaje
-    // @ts-ignore: user_id existe en el modelo Trip pero TS no lo sabe
+    // @ts-ignore
     if (trip.user_id === userId) {
       res.status(400).json({
         success: false,
-        message: "No puedes reservar un viaje que tú mismo conduces",
+        message: "No puedes reservar tu propio viaje",
       });
       return;
     }
 
-    // 3. Verificar asientos disponibles
     // @ts-ignore
     if (trip.available_seats <= 0) {
       res.status(400).json({
         success: false,
-        message: "No hay asientos disponibles en este viaje",
+        message: "No hay asientos disponibles",
       });
       return;
     }
 
-    // 4. Evitar reserva duplicada del mismo usuario en el mismo viaje
     const existingReservation = await Reservation.findOne({
       where: {
         trip_id: tripId,
@@ -223,29 +315,16 @@ export const reserveTrip = async (req: Request, res: Response): Promise<void> =>
     if (existingReservation) {
       res.status(400).json({
         success: false,
-        message: "Ya tienes una reserva para este viaje",
+        message: "Ya reservaste este viaje",
       });
       return;
     }
 
-    // 5. Crear la reserva en estado "pending"
     const reservation = await Reservation.create({
       trip_id: tripId,
       user_id: userId,
       status: "pending",
     });
-
-    // // 6. Descontar asiento disponible y, si llega a 0, marcar como "full"
-    // // @ts-ignore
-    // trip.available_seats = trip.available_seats - 1;
-
-    // // @ts-ignore
-    // if (trip.available_seats === 0) {
-    //   // @ts-ignore
-    //   trip.status = "full";
-    // }
-
-    // await trip.save();
 
     res.status(201).json({
       success: true,
@@ -261,48 +340,3 @@ export const reserveTrip = async (req: Request, res: Response): Promise<void> =>
     });
   }
 };
-
-export const listMyTrips = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ success: false, message: "No autorizado" });
-      return;
-    }
-
-    const { status } = req.query as { status?: string };
-
-    const where: WhereOptions = {
-      user_id: userId, // solo viajes creados por este usuario
-    };
-
-    // Si viene status y no es 'all', filtramos
-    if (status && status !== "all" && status.trim() !== "") {
-      (where as any).status = status;
-    }
-
-    const trips = await Trip.findAll({
-      where,
-      order: [["departure_time", "ASC"]],
-      include: [
-        {
-          association: Trip.associations.driver,
-          attributes: { exclude: ["password"] },
-        },
-      ],
-    });
-
-    res.status(200).json({
-      success: true,
-      data: trips,
-    });
-  } catch (error: any) {
-    console.error("Error al obtener mis viajes:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error al obtener mis viajes",
-      error: error.message,
-    });
-  }
-};
-

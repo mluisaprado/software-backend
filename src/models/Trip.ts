@@ -15,7 +15,7 @@ Trip.init(
     origin: { type: DataTypes.STRING, allowNull: false },
     destination: { type: DataTypes.STRING, allowNull: false },
     departure_time: { type: DataTypes.DATE, allowNull: false },
-    price_per_seat: { type: DataTypes.FLOAT, allowNull: false },
+    price_per_seat: { type: DataTypes.INTEGER, allowNull: false },
     total_seats: { type: DataTypes.INTEGER, allowNull: false },
     available_seats: { type: DataTypes.INTEGER, allowNull: false },
     status: {

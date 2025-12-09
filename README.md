@@ -82,3 +82,36 @@ Comando	Descripción
 npm run dev	Ejecuta el servidor en modo desarrollo
 npm run build	Compila el código TypeScript en dist/
 npm start	Ejecuta el código compilado (producción)
+npm test	Ejecuta los tests unitarios
+npm run test:watch	Ejecuta los tests en modo watch
+npm test -- --coverage	Ejecuta los tests con reporte de cobertura
+
+---
+
+## 🧪 Testing
+
+Este proyecto incluye tests unitarios completos para los controladores principales.
+
+### Ejecutar Tests
+
+```bash
+# Ejecutar todos los tests
+npm test
+
+# Ejecutar tests con cobertura
+npm test -- --coverage
+
+# Ejecutar tests en modo watch
+npm run test:watch
+```
+
+### Documentación de Testing
+
+Para más información sobre cómo escribir y ejecutar tests, consulta la [documentación completa de testing](./docs/TESTING.md).
+
+La documentación incluye:
+- ✅ Guía de configuración
+- ✅ Estructura de tests
+- ✅ Ejemplos de código
+- ✅ Mejores prácticas
+- ✅ Troubleshooting
