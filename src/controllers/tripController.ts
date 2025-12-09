@@ -1,3 +1,4 @@
+//tripController.ts
 import { Request, Response } from "express";
 import { Op, WhereOptions } from "sequelize";
 import { Trip } from "../models/Trip";
@@ -256,6 +257,50 @@ export const reserveTrip = async (req: Request, res: Response): Promise<void> =>
     res.status(500).json({
       success: false,
       message: "Error al reservar el viaje",
+      error: error.message,
+    });
+  }
+};
+
+export const listMyTrips = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, message: "No autorizado" });
+      return;
+    }
+
+    const { status } = req.query as { status?: string };
+
+    const where: WhereOptions = {
+      user_id: userId, // solo viajes creados por este usuario
+    };
+
+    // Si viene status y no es 'all', filtramos
+    if (status && status !== "all" && status.trim() !== "") {
+      (where as any).status = status;
+    }
+
+    const trips = await Trip.findAll({
+      where,
+      order: [["departure_time", "ASC"]],
+      include: [
+        {
+          association: Trip.associations.driver,
+          attributes: { exclude: ["password"] },
+        },
+      ],
+    });
+
+    res.status(200).json({
+      success: true,
+      data: trips,
+    });
+  } catch (error: any) {
+    console.error("Error al obtener mis viajes:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error al obtener mis viajes",
       error: error.message,
     });
   }
