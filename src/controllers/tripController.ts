@@ -1,3 +1,4 @@
+//tripController.ts
 import { Request, Response } from "express";
 import { Op, WhereOptions } from "sequelize";
 import { Trip } from "../models/Trip";
