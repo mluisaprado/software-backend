@@ -1,11 +1,5 @@
 /// <reference types="jest" />
 import type { Request, Response } from "express";
-import {
-  listReservationsForTrip,
-  acceptReservation,
-  rejectReservation,
-  listMyUpcomingTrips,
-} from "../src/controllers/reservationController";
 
 jest.mock("../src/models/Reservation", () => ({
   Reservation: {
@@ -25,6 +19,19 @@ jest.mock("../src/models/User", () => ({
   __esModule: true,
   default: {},
 }));
+
+jest.mock("../src/models/Calification", () => ({
+  Calification: {
+    associations: {},
+  },
+}));
+
+import {
+  listReservationsForTrip,
+  acceptReservation,
+  rejectReservation,
+  listMyUpcomingTrips,
+} from "../src/controllers/reservationController";
 
 const { Reservation } = jest.requireMock("../src/models/Reservation") as {
   Reservation: {

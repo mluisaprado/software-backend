@@ -76,7 +76,7 @@ describe("tripController.createTrip", () => {
     const req = {
       user: { id: 1, email: "test@example.com" },
       body: {
-        origin: "Lima",
+        origin: "Lima Centro",
         destination: "Cusco",
         departure_time: futureDate,
         price_per_seat: 40,
@@ -92,7 +92,7 @@ describe("tripController.createTrip", () => {
     expect(createMock).toHaveBeenCalledWith(
       expect.objectContaining({
         user_id: 1,
-        origin: "Lima",
+        origin: "Lima Centro",
         destination: "Cusco",
         price_per_seat: 40,
       })
@@ -184,7 +184,7 @@ describe("tripController.createTrip - casos adicionales", () => {
     const req = {
       user: { id: 1, email: "test@example.com" },
       body: {
-        origin: "Lima",
+        origin: "Lima Centro",
         destination: "Cusco",
         departure_time: futureDate,
         price_per_seat: 40,
@@ -205,7 +205,7 @@ describe("tripController.createTrip - casos adicionales", () => {
     const req = {
       user: { id: 1, email: "test@example.com" },
       body: {
-        origin: "Lima",
+        origin: "Lima Centro",
         destination: "Cusco",
         departure_time: futureDate,
         price_per_seat: 40,
@@ -229,7 +229,7 @@ describe("tripController.createTrip - casos adicionales", () => {
     const req = {
       user: { id: 1, email: "test@example.com" },
       body: {
-        origin: "Lima",
+        origin: "Lima Centro",
         destination: "Cusco",
         departure_time: futureDate,
         price_per_seat: 40,
