@@ -1,7 +1,5 @@
 /// <reference types="jest" />
 import type { Request, Response } from "express";
-import { getUserById } from "../src/controllers/userController";
-import User from "../src/models/User";
 
 jest.mock("../src/models/User", () => ({
   __esModule: true,
@@ -9,6 +7,21 @@ jest.mock("../src/models/User", () => ({
     findByPk: jest.fn(),
   },
 }));
+
+jest.mock("../src/models/Trip", () => ({
+  Trip: {
+    associations: {},
+  },
+}));
+
+jest.mock("../src/models/Calification", () => ({
+  Calification: {
+    associations: {},
+  },
+}));
+
+import { getUserById } from "../src/controllers/userController";
+import User from "../src/models/User";
 
 type MockedUser = {
   findByPk: jest.Mock;
